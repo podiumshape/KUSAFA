@@ -1,0 +1,743 @@
+# TAHAP 2.2 — FINAL CLOSURE QUALITY GATE DATABASE KUSAFA
+## Rekonsiliasi 7 Role Fungsional, DDL, RLS, Integritas Database, dan Kesiapan Supabase
+
+Gunakan seluruh hasil berikut sebagai referensi:
+1. Dokumen Spesifikasi Induk KUSAFA v1.0.
+2. Hasil Audit Sumber Data Aktual.
+3. Laporan Quality Gate Tahap 2.
+4. Laporan Tahap 2.1 — Final Closure Quality Gate Database KUSAFA.
+5. Repository GitHub `podiumshape/KUSAFA`, commit `6e86332`, branch `main`.
+
+Tugas Anda adalah menutup inkonsistensi teknis yang masih ditemukan. Jangan merancang ulang seluruh sistem dan jangan mengubah keputusan bisnis yang sudah disepakati.
+
+---
+
+# A. BATASAN DAN PRINSIP UTAMA
+
+1. KUSAFA menggunakan tiga domain akademik yang independen:
+
+   **Ilmu Al-Qur'an**
+   - Tilawah
+   - Tahfidz
+   - Kitabah
+   - Tadabbur
+
+   **Ilmu Wasilah**
+   - Baca
+   - Tulis
+   - Hisab
+   - Sirah
+
+   **Ilmu Ghayah**
+   - Adab
+   - Iman
+   - Fiqih
+
+2. Penempatan santri pada halaqah, level, atau kelompok merupakan hasil musyawarah asatidzah yang mengenal karakter dan kemampuan santri. Sistem tidak boleh membuat keputusan otomatis tentang penempatan, perpindahan, kenaikan tingkat, kelulusan, atau penilaian pedagogis.
+
+3. NIS tidak boleh dibuat otomatis untuk mengisi kekosongan data. Santri yang identitasnya belum terverifikasi tetap berada di staging.
+
+4. Status akademik santri tetap dipisahkan dari status verifikasi data.
+
+5. Evaluasi formal menggunakan tiga kategori: Menguasai, Perlu Penguatan, dan Belum Menguasai. Keputusan final mengikuti kewenangan kelembagaan dan pengesahan Mudir.
+
+6. Struktur hak akses harus mempertahankan **TUJUH ROLE FUNGSIONAL** yang sudah disepakati pada awal perancangan KUSAFA.
+
+7. Jangan menyederhanakan kembali tujuh role menjadi empat role. Jangan pula membuat role generik `ASATIDZAH` yang menggantikan fungsi spesifik MUSYRIF dan MUDARRIS.
+
+8. Jangan mengubah source code, dependencies, database fisik, data sumber, atau repository GitHub. Jangan melakukan commit/push dan jangan menjalankan migrasi Supabase.
+
+9. Jangan menyatakan DDL bebas kesalahan sintaks, RLS aman, atau mekanisme sudah teruji jika belum ada bukti eksekusi dan pengujian PostgreSQL aktual.
+
+---
+
+# B. STRUKTUR TUJUH ROLE FUNGSIONAL KUSAFA
+
+Pertahankan tepat tujuh jenis role berikut:
+
+1. `ADMIN`
+2. `MUDIR`
+3. `MASUL_QURAN`
+4. `MASUL_WASILAH`
+5. `MASUL_GHAYAH`
+6. `MUSYRIF`
+7. `MUDARRIS`
+
+Jangan membuat `MASUL` generik sebagai pengganti tiga role Mas'ul domain.
+
+Jangan menjadikan `ASATIDZAH` sebagai role akses generik pengganti MUSYRIF dan MUDARRIS. Asatidzah adalah identitas/profil pendidik, sedangkan Musyrif dan Mudarris merupakan fungsi penugasan yang memiliki kewenangan operasional berbeda.
+
+## B.1. ADMIN — Administrator Sistem
+
+Tanggung jawab:
+- Provisioning dan pengelolaan akun pengguna.
+- Pengelolaan konfigurasi teknis.
+- Pengelolaan data staging dan rekonsiliasi administratif.
+- Monitoring sistem, log teknis, metadata backup, dan pemeliharaan.
+- Bantuan input operasional sesuai prosedur dan permintaan pihak yang berwenang.
+- Pengelolaan teknis dokumen dan arsip sesuai kewenangan.
+
+Batas kewenangan:
+- Tidak menetapkan NIS resmi atas inisiatif sendiri.
+- Tidak menetapkan status akademik final.
+- Tidak menentukan atau mengubah penempatan halaqah, level, atau kelompok atas inisiatif sendiri.
+- Tidak mengesahkan evaluasi atau kenaikan tingkat.
+- Tidak mengesahkan rapor atau laporan resmi sebagai pengganti Mudir.
+- Tidak dapat mengonfirmasi sendiri input capaian yang dibuatnya atas nama guru.
+- Tidak boleh mengubah keputusan musyawarah tanpa prosedur resmi.
+
+Admin merupakan administrator teknis, bukan superuser akademik.
+
+## B.2. MUDIR — Otoritas Kelembagaan
+
+Tanggung jawab:
+- Pengawasan akademik seluruh lembaga.
+- Akses pengawasan lintas domain.
+- Pengesahan evaluasi formal dan keputusan akademik yang menjadi kewenangannya.
+- Pengesahan perubahan status akademik dan keputusan kenaikan tingkat/kelulusan sesuai prosedur lembaga.
+- Pengesahan dokumen resmi dan penguncian laporan.
+- Pengesahan kalender akademik dan hari efektif.
+- Pengawasan KBM, pengelolaan kelembagaan, dan audit.
+- Pengesahan penetapan pejabat atau penanggung jawab sesuai keputusan lembaga.
+
+Mudir tidak menggantikan musyawarah asatidzah dalam penentuan penempatan santri. Catatan musyawarah, dasar keputusan, dan pihak yang bertanggung jawab harus tetap tersimpan.
+
+## B.3. MASUL_QURAN — Mas'ul Ilmu Al-Qur'an
+
+Tanggung jawab:
+- Monitoring dan pengelolaan operasional domain Al-Qur'an.
+- Mengelola halaqah Al-Qur'an dan penugasan musyrif sesuai kewenangan.
+- Menelaah target Tilawah, Tahfidz, Kitabah, dan Tadabbur.
+- Menelaah capaian harian dan rekap bulanan.
+- Mengelola serta memvalidasi data kehadiran domain.
+- Mengawasi proses evaluasi dan tindak lanjut.
+- Menyusun rekomendasi keputusan kepada Mudir.
+
+Batas kewenangan:
+- Tidak dapat mengelola domain Wasilah atau Ghayah tanpa penetapan role terpisah.
+- Tidak dapat mengesahkan keputusan final yang menjadi kewenangan Mudir.
+- Tidak dapat menentukan penempatan secara otomatis atau sepihak.
+
+## B.4. MASUL_WASILAH — Mas'ul Ilmu Wasilah
+
+Tanggung jawab:
+- Monitoring dan pengelolaan operasional domain Wasilah.
+- Mengelola tingkatan/level pembelajaran Wasilah.
+- Menelaah target dan progres Baca, Tulis, Hisab, dan Sirah.
+- Mengelola dan memvalidasi data operasional domain.
+- Mengawasi pengampu Mudarris Wasilah.
+- Mengelola kehadiran, KBM, evaluasi, serta tindak lanjut domain.
+- Menyusun rekomendasi keputusan kepada Mudir.
+
+Batas kewenangan:
+- Tidak berwenang mengelola data Al-Qur'an atau Ghayah hanya karena berstatus Mas'ul Wasilah.
+- Tidak berwenang mengesahkan keputusan final Mudir.
+
+## B.5. MASUL_GHAYAH — Mas'ul Ilmu Ghayah
+
+Tanggung jawab:
+- Monitoring dan pengelolaan operasional domain Ghayah.
+- Mengelola kelompok Ghayah dan penugasan pengampu.
+- Menelaah target dan progres Adab, Iman, dan Fiqih.
+- Mengelola dan memvalidasi data operasional domain.
+- Mengawasi penugasan 1–3 pengampu pada setiap kelompok sesuai kebutuhan.
+- Mengelola kehadiran, KBM, evaluasi, dan tindak lanjut domain.
+- Menyusun rekomendasi keputusan kepada Mudir.
+
+Batas kewenangan:
+- Tidak berwenang mengelola data Al-Qur'an atau Wasilah hanya karena berstatus Mas'ul Ghayah.
+- Tidak berwenang mengesahkan keputusan final Mudir.
+
+## B.6. MUSYRIF — Musyrif/Musyrifah Al-Qur'an
+
+MUSYRIF adalah role operasional pengampu halaqah Al-Qur'an.
+
+Tanggung jawab:
+- Mengakses santri pada halaqah Al-Qur'an binaannya.
+- Menginput dan mengelola capaian Tilawah, Tahfidz, Kitabah, serta Tadabbur sesuai instrumen.
+- Mengelola capaian harian dan data rekap.
+- Menginput kehadiran domain.
+- Mengelola target harian yang ditetapkan.
+- Menyusun rekomendasi evaluasi dan tindak lanjut.
+- Menelaah riwayat akademik santri binaannya.
+
+Batas kewenangan:
+- Hanya mengakses halaqah yang menjadi penugasan aktifnya.
+- Tidak otomatis dapat mengakses seluruh data Al-Qur'an.
+- Tidak otomatis dapat mengakses data Wasilah dan Ghayah.
+- Tidak dapat mengesahkan evaluasi formal final.
+- Tidak dapat memindahkan santri secara sepihak.
+- Tidak dapat mengubah keputusan yang telah disahkan.
+
+Musyrif dan Musyrifah merupakan penyebutan berdasarkan jenis kelamin, bukan dua role sistem yang berbeda.
+
+## B.7. MUDARRIS — Mudarris/Mudarrisah Wasilah dan Ghayah
+
+MUDARRIS adalah role operasional pengampu pada domain Wasilah dan/atau Ghayah.
+
+Tanggung jawab Wasilah:
+- Mengakses santri pada level Wasilah yang diampu.
+- Mengelola progres Baca, Tulis, Hisab, dan Sirah.
+- Menginput target dan capaian sesuai kewenangannya.
+- Menginput kehadiran.
+- Menyusun rekomendasi evaluasi dan tindak lanjut.
+
+Tanggung jawab Ghayah:
+- Mengakses santri pada kelompok Ghayah yang diampu.
+- Mengelola progres Adab, Iman, dan Fiqih.
+- Menginput target dan capaian sesuai kewenangannya.
+- Menginput kehadiran.
+- Menyusun rekomendasi evaluasi dan tindak lanjut.
+
+Batas kewenangan:
+- Akses hanya berlaku pada level/kelompok yang memiliki penugasan aktif.
+- Mudarris Wasilah tidak otomatis dapat mengakses semua kelompok Ghayah.
+- Mudarris Ghayah tidak otomatis dapat mengakses seluruh level Wasilah.
+- Tidak berwenang mengesahkan keputusan evaluasi final.
+- Tidak berwenang memindahkan santri secara sepihak.
+
+MUDARRIS tetap satu jenis role. Satu orang dapat mempunyai penugasan Wasilah, Ghayah, atau keduanya. Cakupan akses ditentukan oleh penugasan aktual.
+
+Mudarris dan Mudarrisah merupakan penyebutan berdasarkan jenis kelamin, bukan dua role sistem yang berbeda.
+
+---
+
+# C. MODEL PENETAPAN ROLE DAN PENUGASAN
+
+Satu orang boleh memiliki lebih dari satu jabatan/fungsi jika ditetapkan resmi oleh lembaga.
+
+Contoh:
+- Seseorang dapat menjadi MASUL_QURAN sekaligus MUSYRIF.
+- Seseorang dapat menjadi MASUL_WASILAH sekaligus MUDARRIS.
+- Seseorang dapat menjadi MUDARRIS di Wasilah dan Ghayah.
+- Seseorang dapat menjadi Admin sekaligus Asatidzah apabila ditetapkan lembaga, tetapi kewenangan teknis dan akademiknya tetap harus dipisahkan.
+
+Role tidak otomatis memberikan akses ke seluruh data domain.
+
+Gunakan prinsip:
+**ROLE MENENTUKAN FUNGSI DAN JENIS TINDAKAN; PENUGASAN MENENTUKAN UNIT, DOMAIN, DAN SANTRI YANG BOLEH DIAKSES.**
+
+## C.1. Model tabel pengguna
+
+Periksa struktur tabel:
+- `app_users`
+- `user_roles`
+- `asatidzah`
+- `quran_halaqah`
+- `wasilah_level`
+- `ghayah_kelompok`
+- `ghayah_pengampu`
+- `teacher_assignment_history`
+
+Pastikan model relasional mendukung:
+- Satu akun dapat mempunyai beberapa role.
+- Setiap role mempunyai masa berlaku.
+- Role yang dicabut tidak lagi memberikan akses.
+- Semua pemberian dan pencabutan role mempunyai pencatat dan dasar penetapan.
+- Penugasan Asatidzah terpisah dari pemberian role.
+- Penugasan historis tetap tersimpan.
+
+Rekomendasi struktur `user_roles`:
+- id
+- user_id
+- role_name
+- effective_from
+- effective_until
+- is_active
+- granted_by
+- approved_by
+- approval_reference
+- created_at
+
+Nilai `role_name` yang diizinkan hanya:
+- ADMIN
+- MUDIR
+- MASUL_QURAN
+- MASUL_WASILAH
+- MASUL_GHAYAH
+- MUSYRIF
+- MUDARRIS
+
+Jangan menambahkan role `ASATIDZAH` atau `MASUL` generik.
+
+Cakupan domain tidak perlu menggantikan role yang sudah spesifik. Hubungkan setiap role kepada domain secara eksplisit dalam fungsi pemetaan atau konfigurasi sistem.
+
+## C.2. Pemetaan role terhadap domain
+
+Terapkan pemetaan:
+
+| Role | Domain kewenangan |
+|---|---|
+| ADMIN | Teknis sistem; tidak otomatis memiliki kewenangan akademik |
+| MUDIR | Seluruh lembaga |
+| MASUL_QURAN | QURAN |
+| MASUL_WASILAH | WASILAH |
+| MASUL_GHAYAH | GHAYAH |
+| MUSYRIF | QURAN, sesuai halaqah aktif |
+| MUDARRIS | WASILAH dan/atau GHAYAH, sesuai level/kelompok aktif |
+
+Untuk MUSYRIF, hubungan penugasan harus mengikuti halaqah Al-Qur'an.
+
+Untuk MUDARRIS:
+- Penugasan Wasilah mengikuti level yang diampu.
+- Penugasan Ghayah mengikuti `ghayah_pengampu` beserta rentang tanggal efektif.
+- Satu orang dapat mengampu kedua domain apabila penugasannya memang ada.
+
+Jangan menggunakan role sebagai satu-satunya dasar penentuan santri binaan.
+
+## C.3. Otorisasi role
+
+Pisahkan:
+1. Pembuatan akun teknis.
+2. Penetapan jabatan/role.
+3. Penetapan penugasan mengajar.
+4. Perubahan dan pencabutan role.
+
+Admin boleh melakukan provisioning akun setelah ada dasar penetapan yang sah.
+
+Admin tidak boleh secara sepihak menaikkan dirinya atau pengguna lain menjadi Mudir atau Mas'ul.
+
+Pengguna tidak boleh mengubah role sendiri melalui frontend.
+
+Pemberian dan pencabutan role harus melalui proses yang terotorisasi serta tercatat dalam audit trail.
+
+## C.4. Separation of Duties
+
+Susun pengamanan untuk:
+- Pengesahan evaluasi.
+- Pengesahan dokumen laporan.
+- Pemberian dan perubahan role.
+- Promosi data staging ke tabel utama.
+- Koreksi data akademik yang telah disahkan.
+- Pengesahan penempatan dan mutasi santri.
+
+Jangan mengasumsikan jabatan selalu eksklusif. Akan tetapi, tindakan sensitif harus mencegah pengesahan oleh pihak yang tidak berwenang atau mengesahkan tindakan yang dibuatnya sendiri apabila prosedur lembaga mensyaratkan pemeriksaan independen.
+
+Jika kebijakan pemisahan tersebut belum ditetapkan dalam Dokumen Spesifikasi Induk, tampilkan sebagai hal yang membutuhkan keputusan lembaga. Jangan membuat aturan kelembagaan baru secara sepihak.
+
+---
+
+# D. REKONSILIASI INTEGRITAS PENEMPATAN TIGA DOMAIN
+
+Perbaiki DDL:
+- `quran_penempatan`
+- `wasilah_penempatan`
+- `ghayah_penempatan`
+
+Definisi status:
+- `BELUM_DITEMPATKAN`: unit tujuan NULL dan belum ada penempatan berjalan.
+- `DITEMPATKAN`: penempatan aktif, unit tujuan NOT NULL, tanggal_selesai NULL.
+- `PINDAH`: riwayat penempatan lama yang sudah berakhir, unit tujuan NOT NULL, tanggal_selesai NOT NULL.
+- `NONAKTIF`: penempatan lama yang dihentikan, unit tujuan NOT NULL jika merupakan riwayat penempatan, tanggal_selesai NOT NULL.
+
+Definisikan tanggal_selesai sebagai hari terakhir santri mengikuti penempatan.
+
+Karena PostgreSQL memakai rentang `[)`, batas atas `daterange` harus menggunakan tanggal setelah tanggal_selesai, yaitu `tanggal_selesai + 1 hari`.
+
+Contoh:
+- Penempatan lama: 1–10 November.
+- Penempatan baru: mulai 11 November.
+
+Pastikan:
+1. Extension `btree_gist`.
+2. `EXCLUDE USING GIST` dengan rentang tanggal yang tepat.
+3. Overlap dicegah untuk seluruh riwayat penempatan yang memiliki unit tujuan.
+4. Status NONAKTIF tidak dapat menghindari exclusion constraint.
+5. Satu santri hanya mempunyai satu penempatan aktif per domain.
+6. `BELUM_DITEMPATKAN` tidak menimbulkan penempatan ganda.
+7. FK unit tujuan sesuai status.
+8. Validasi tanggal konsisten untuk ketiga domain.
+
+Tampilkan seluruh DDL final, termasuk CHECK, EXCLUDE, dan partial unique index.
+
+---
+
+# E. REKONSILIASI INTEGRITAS TARGET GHAYAH
+
+Periksa `public.ghayah_target`.
+
+Cegah:
+- Dua target umum aktif yang tumpang tindih pada kelompok, tahun akademik, dan mata pelajaran yang sama.
+- Dua target individual aktif yang tumpang tindih pada santri, kelompok, tahun akademik, dan mata pelajaran yang sama.
+- Target individual diberikan kepada santri yang tidak memiliki penempatan sah pada kelompok dan tahun akademik terkait.
+
+Validasi harus memastikan seluruh rentang target tercakup dalam rentang penempatan yang sah, bukan sekadar memiliki irisan satu hari.
+
+Perbaiki view `v_santri_ghayah_target_aktif` agar prioritas target individual memeriksa:
+- santri_id
+- ghayah_kelompok_id
+- tahun_akademik_id
+- mata_pelajaran
+- rentang tanggal efektif
+
+Jika target individual tersedia, gunakan sebagai override untuk santri dan mata pelajaran yang sama pada rentang tersebut. Jika tidak ada, gunakan target umum kelompok.
+
+Periksa pula integritas ketika penempatan santri berubah setelah target individual dibuat. Sediakan mekanisme transaksi, trigger, atau prosedur validasi agar perubahan penempatan tidak membuat target yang sudah tersimpan menjadi tidak sah.
+
+Jangan menyatakan integritas lintas tabel dijamin hanya oleh trigger INSERT/UPDATE pada ghayah_target.
+
+Berikan DDL lengkap dan jelaskan pengamanan terhadap transaksi bersamaan.
+
+---
+
+# F. REKONSILIASI FORMULA KEHADIRAN
+
+Formula resmi:
+
+`HADIR = HARI_EFEKTIF - (SAKIT + IZIN + ALPHA)`
+
+Gunakan Generated Column STORED jika sesuai dengan desain PostgreSQL final.
+
+Constraint:
+
+`SAKIT + IZIN + ALPHA <= HARI_EFEKTIF`
+
+Pastikan:
+- Semua komponen tidak bernilai negatif.
+- Hari efektif nol menghasilkan Hadir nol, sedangkan persentase ditampilkan sebagai tidak ada hari efektif, bukan pembagian nol.
+- Santri masuk atau keluar di tengah periode menggunakan hari efektif yang memang wajib diikutinya.
+- Nilai hadir tidak dapat dimanipulasi manual.
+- Kehadiran tetap terpisah menurut domain.
+
+Jelaskan sumber angka hari efektif dan otoritas yang mengesahkannya.
+
+---
+
+# G. REKONSILIASI KEAMANAN RLS DENGAN TUJUH ROLE
+
+Ini wajib disesuaikan dengan seluruh pembagian pada Bagian B dan C.
+
+Buat matriks akses per tabel dengan tujuh role:
+- ADMIN
+- MUDIR
+- MASUL_QURAN
+- MASUL_WASILAH
+- MASUL_GHAYAH
+- MUSYRIF
+- MUDARRIS
+
+Jangan menggunakan kembali empat role generik.
+
+Untuk setiap tabel dan setiap operasi, jelaskan:
+- Role yang boleh SELECT.
+- Role yang boleh INSERT.
+- Role yang boleh UPDATE.
+- Role yang boleh DELETE jika memang diperlukan.
+- Cakupan domain.
+- Cakupan unit penugasan.
+- Pembatasan kolom sensitif.
+- Syarat persetujuan bila diperlukan.
+
+## G.1. Kebijakan akses per role
+
+**ADMIN**
+- Berwenang pada fungsi teknis dan administrasi sistem.
+- Tidak otomatis mendapat seluruh hak akademik.
+- Tidak boleh mengesahkan evaluasi atau dokumen resmi sebagai Mudir.
+- Tidak boleh membuat keputusan penempatan.
+- Akses data pribadi dan data akademik dibatasi sesuai kebutuhan operasional.
+- Input bantuan wajib diberi status menunggu konfirmasi pihak pengampu.
+
+**MUDIR**
+- Memiliki akses pengawasan seluruh domain.
+- Dapat mengesahkan evaluasi dan dokumen resmi sesuai prosedur.
+- Dapat mengawasi perubahan status akademik dan penempatan.
+- Keputusan dan pengesahan wajib tercatat dalam audit trail.
+
+**MASUL_QURAN**
+- Akses operasional hanya domain Al-Qur'an.
+- Dapat mengelola halaqah dan pengampu sesuai kewenangan.
+- Tidak dapat mengubah data Wasilah atau Ghayah.
+
+**MASUL_WASILAH**
+- Akses operasional hanya domain Wasilah.
+- Dapat mengelola level, target, progres, pengampu, dan monitoring KBM domain.
+- Tidak dapat mengubah data Al-Qur'an atau Ghayah.
+
+**MASUL_GHAYAH**
+- Akses operasional hanya domain Ghayah.
+- Dapat mengelola kelompok, target, co-teaching, progres, dan monitoring KBM domain.
+- Tidak dapat mengubah data Al-Qur'an atau Wasilah.
+
+**MUSYRIF**
+- Akses berdasarkan halaqah Al-Qur'an yang aktif diampu.
+- Tidak boleh melihat halaqah lain tanpa penugasan.
+- Tidak mempunyai kewenangan global hanya karena berstatus MUSYRIF.
+
+**MUDARRIS**
+- Akses berdasarkan level Wasilah dan/atau kelompok Ghayah yang aktif diampu.
+- Akses Wasilah dan Ghayah harus diverifikasi berdasarkan penugasan masing-masing.
+- Tidak boleh melihat semua level atau kelompok tanpa penugasan.
+
+Seseorang yang memiliki lebih dari satu role hanya memperoleh gabungan kewenangan yang memang sah dan berlaku, bukan akses global tanpa batas.
+
+## G.2. Fungsi helper otorisasi
+
+Periksa dan sediakan fungsi yang tepat, misalnya:
+- `has_role(required_role)`
+- `is_admin()`
+- `is_mudir()`
+- `is_masul_quran()`
+- `is_masul_wasilah()`
+- `is_masul_ghayah()`
+- `is_teacher_assigned_to_student(p_santri_id, p_domain)`
+- `can_access_student(p_santri_id, p_domain)`
+- fungsi pemeriksaan penugasan pengampu aktif sesuai kebutuhan.
+
+Pemetaan identitas wajib eksplisit:
+
+`auth.uid()` → `app_users.auth_user_id` → `app_users.id` → `user_roles` dan/atau `asatidzah.id` → relasi penugasan pengampu.
+
+Jangan menganggap UUID auth.uid() sama dengan UUID asatidzah.
+
+Pastikan:
+- Masa berlaku role diperiksa.
+- Masa berlaku penugasan pengampu diperiksa.
+- MASUL hanya mengakses domain sesuai rolenya.
+- MUSYRIF hanya mengakses halaqah aktif binaannya.
+- MUDARRIS hanya mengakses level/kelompok aktif binaannya.
+- Co-teaching Ghayah didukung.
+- Akun tidak aktif kehilangan akses.
+- Pengguna tidak dapat mengubah role sendiri.
+- Fungsi SECURITY DEFINER mempunyai search_path aman, objek dikualifikasi eksplisit, serta hak EXECUTE dibatasi.
+
+## G.3. Skrip RLS aktual
+
+Jangan berhenti pada matriks konseptual.
+
+Hasilkan:
+- `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` untuk tabel relevan.
+- `FORCE ROW LEVEL SECURITY` apabila diperlukan dan sesuai pola akses service role.
+- `CREATE POLICY` per tabel dan operasi.
+- `USING` dan `WITH CHECK` secara tepat.
+- `GRANT` dan `REVOKE`.
+- Pembatasan kolom sensitif.
+- Pengamanan fungsi RPC dan SECURITY DEFINER.
+
+Periksa seluruh tabel operasional dan staging.
+
+Admin tidak boleh mempromosikan data mentah yang belum terverifikasi ke `public.santri` tanpa validasi identitas dan prosedur yang sah.
+
+Input bantuan Admin ke capaian atau kehadiran harus memiliki penanda `MENUNGGU_KONFIRMASI_GURU`. Admin tidak dapat mengonfirmasi input yang dibuatnya sendiri.
+
+Pengelolaan keputusan evaluasi dan dokumen resmi harus diterapkan secara teknis, bukan hanya dinyatakan dalam matriks.
+
+## G.4. Skenario pengujian RLS
+
+Buat skenario positif dan negatif untuk:
+1. Admin mencoba mengubah keputusan evaluasi final.
+2. Admin mencoba mengesahkan input yang dibuat sendiri.
+3. Mudir membaca data lintas domain.
+4. Mas'ul Al-Qur'an mencoba mengubah data Wasilah.
+5. Mas'ul Wasilah mencoba mengakses data Ghayah.
+6. Mas'ul Ghayah mencoba mengubah data Al-Qur'an.
+7. Musyrif mencoba membuka halaqah yang bukan binaannya.
+8. Mudarris Wasilah mencoba membuka kelompok Ghayah tanpa penugasan.
+9. Mudarris Ghayah mencoba membuka level Wasilah tanpa penugasan.
+10. Mudarris yang mempunyai penugasan pada kedua domain mencoba mengakses keduanya.
+11. Pengampu yang penugasannya telah berakhir mencoba mengakses data aktif.
+12. Pengguna yang tidak aktif mencoba memanggil RPC.
+13. Pengguna mencoba memberikan role kepada dirinya sendiri.
+14. Pengguna yang mempunyai dua role mencoba menggunakan hak akses dari penugasan yang tidak aktif.
+
+Sediakan hasil yang diharapkan dan query pengujian. Jangan mengklaim skenario sudah benar-benar lulus sebelum dijalankan pada database.
+
+---
+
+# H. REKONSILIASI PENGUNCIAN DOKUMEN RESMI
+
+Perbaiki `public.dokumen_laporan`.
+
+Trigger harus mencakup INSERT, UPDATE, dan DELETE.
+
+Pastikan:
+- Dokumen terkunci tidak dapat diubah atau dihapus.
+- Insert langsung dengan `is_locked = TRUE` tidak dapat melewati proses pengesahan.
+- Pengguna tidak dapat mengisi sendiri `disahkan_oleh` dan `disahkan_pada`.
+- Penguncian hanya melalui proses Mudir yang sah.
+- Dokumen revisi wajib memiliki parent yang sudah terkunci.
+- Santri, tahun akademik, periode evaluasi, dan jenis laporan sesuai dengan dokumen induk.
+- Nomor revisi berurutan dan tidak ganda.
+- Nomor dokumen unik dan tidak digunakan ulang.
+- Koreksi selalu menghasilkan dokumen baru.
+- Perubahan dokumen resmi tercatat pada audit trail.
+
+Sertakan DDL constraint, fungsi, trigger, serta mekanisme RPC jika diperlukan.
+
+---
+
+# I. REKONSILIASI BACKUP DAN RESTORE
+
+Pertahankan spesifikasi awal KUSAFA:
+
+- Backup harian pukul 23.00 WIB.
+- Satu percobaan awal ditambah maksimal tiga kali retry.
+- Jeda retry 30 menit.
+- Retensi harian 30 hari.
+- Retensi bulanan 12 bulan.
+- Arsip tahunan permanen.
+- AES-256-GCM.
+- IV/nonce, authentication tag, dan key version.
+- Secret utama disimpan di Secret Manager eksternal, bukan database atau frontend.
+- SHA-256.
+- Pemeriksaan ukuran, kelengkapan, dan keterbacaan.
+- Uji restore setiap tiga bulan pada lingkungan terpisah.
+- Notifikasi kegagalan kepada Admin dan Mudir.
+
+Pisahkan tabel:
+- `backup_jobs` untuk status proses yang berubah.
+- `backup_job_attempts` untuk riwayat setiap percobaan.
+- `backup_metadata` untuk metadata arsip append-only.
+- `restore_test_history` untuk riwayat setiap pengujian pemulihan.
+
+Perjelas:
+- Jadwal 23.00, 23.30, 00.00, dan 00.30 WIB.
+- Perbedaan checksum data sebelum enkripsi dan checksum file terenkripsi setelah upload.
+- Validasi gzip sebelum enkripsi.
+- Verifikasi ukuran dan checksum setelah upload.
+- Prosedur restore dan validasi hasil pemulihan.
+- Key rotation dan pemetaan versi kunci.
+- Pencegahan penghapusan arsip tahunan.
+
+Jangan menempatkan secret atau materi kunci enkripsi dalam tabel database.
+
+---
+
+# J. REKONSILIASI JUMLAH DAN INVENTARIS TABEL
+
+Laporan sebelumnya menyebut 41 tabel operasional, tetapi juga mendefinisikan `backup_jobs` yang tidak masuk inventaris 41 tabel.
+
+Kini terdapat kemungkinan tabel tambahan:
+- `backup_jobs`
+- `backup_job_attempts`
+- `restore_test_history`
+
+Hitung ulang seluruh tabel berdasarkan DDL final.
+
+Tampilkan daftar terpisah:
+1. Tabel operasional/business pada schema public.
+2. Tabel teknis/pendukung pada schema public.
+3. Tabel staging.
+
+Setiap tabel harus tercantum satu kali, mempunyai nama final, fungsi, dan FK utama.
+
+Jangan memaksakan angka 41 apabila DDL final menghasilkan jumlah berbeda.
+
+Pastikan empat tabel staging tetap dapat menampung:
+- Data mentah Al-Qur'an.
+- Data mentah Wasilah.
+- Data mentah Ghayah.
+- Konflik rekonsiliasi identitas dan data.
+
+Data santri tanpa NIS valid tidak boleh dipromosikan menjadi entitas resmi `public.santri`.
+
+---
+
+# K. EMPAT ERD MERMAID FINAL
+
+Berikan empat diagram Mermaid dengan kode yang benar-benar valid dan dapat dirender:
+
+1. Identitas, pengguna, tujuh role, profil akademik, dan tahun akademik.
+2. Tiga domain pembelajaran independen.
+3. Kalender, kehadiran, evaluasi, dan KBM.
+4. Pengguna, penugasan, dokumen, audit, backup, dan staging.
+
+Pastikan:
+- Nama tabel sesuai inventaris final.
+- Relasi FK sesuai DDL final.
+- Tujuh role utama terlihat jelas.
+- Relasi Mas'ul terhadap domain terlihat secara eksplisit.
+- Penugasan Musyrif pada halaqah terlihat.
+- Penugasan Mudarris pada Wasilah dan Ghayah terlihat.
+- Co-teaching Ghayah ditampilkan.
+- Tidak ada placeholder "Diagram Mermaid".
+
+---
+
+# L. PENYESUAIAN STRUKTUR HAK AKSES PADA ANTARMUKA
+
+Repository GitHub yang diperiksa pada commit `6e86332` merupakan frontend awal dan belum terhubung ke Supabase.
+
+Struktur hak akses di dashboard harus mencerminkan tujuh jenis role yang telah disepakati:
+
+1. Admin.
+2. Mudir.
+3. Mas'ul Al-Qur'an.
+4. Mas'ul Ilmu Wasilah.
+5. Mas'ul Ilmu Ghayah.
+6. Musyrif/Musyrifah.
+7. Mudarris/Mudarrisah.
+
+Jangan menampilkan hanya "4 Role".
+
+Tampilan ringkasan hak akses sebaiknya menampilkan 7 role, dengan keterangan cakupan yang berbeda:
+
+- Admin — Administrasi teknis sistem.
+- Mudir — Otoritas kelembagaan.
+- Mas'ul Al-Qur'an — Pengelolaan domain Al-Qur'an.
+- Mas'ul Wasilah — Pengelolaan domain Wasilah.
+- Mas'ul Ghayah — Pengelolaan domain Ghayah.
+- Musyrif/Musyrifah — Pengampu halaqah Al-Qur'an.
+- Mudarris/Mudarrisah — Pengampu level Wasilah dan/atau kelompok Ghayah.
+
+Sediakan rekomendasi struktur dashboard dan menu yang sesuai dengan hak masing-masing role.
+
+Jangan membuat source code atau mengubah repository pada tahap ini. Hanya hasilkan rekomendasi penyesuaian UI untuk tahap refaktor frontend berikutnya.
+
+Pertahankan nomenklatur mata pelajaran:
+- Al-Qur'an: Tilawah, Tahfidz, Kitabah, Tadabbur.
+- Wasilah: Baca, Tulis, Hisab, Sirah.
+- Ghayah: Adab, Iman, Fiqih.
+
+---
+
+# M. VALIDASI FINAL DAN KEPUTUSAN TAHAP 3
+
+Susun tabel hasil pemeriksaan dengan kolom:
+- Area.
+- Bukti DDL atau mekanisme.
+- Status.
+- Kekurangan.
+- Tindakan yang diperlukan.
+
+Gunakan status:
+- LOLOS.
+- LOLOS DENGAN CATATAN.
+- BELUM LOLOS.
+- BELUM DAPAT DIVERIFIKASI.
+
+Pisahkan empat keputusan akhir:
+
+1. Kelayakan blueprint konseptual.
+2. Kesiapan DDL untuk diuji pada Supabase Development.
+3. Kesiapan keamanan dan RLS tujuh role.
+4. Kesiapan migrasi data aktual.
+
+Bedakan secara eksplisit:
+- Rancangan konseptual.
+- DDL sudah ditulis tetapi belum dieksekusi.
+- DDL sudah diuji pada PostgreSQL.
+- Mekanisme sudah diuji menggunakan data uji.
+- Migrasi data aktual sudah diverifikasi oleh manusia.
+
+Data yang masih membutuhkan keputusan manusia tetap berstatus HOLD:
+- Khayra Almira Hafidz, Zulfa, dan Ahmad Al Furqon Hafidz yang belum mempunyai NIS terverifikasi.
+- Hanan yang tercatat pada kelompok putra Ghayah.
+- Harun Abdulloh Al Mubarok yang belum mempunyai penempatan Ghayah.
+- Ahmad Musa Zamzami yang belum mempunyai penempatan Wasilah dan Ghayah.
+- Wasilah Level 6 yang belum mempunyai pengampu.
+- Konfirmasi hari efektif sesuai kalender akademik resmi.
+
+Jangan membuat keputusan pengganti untuk persoalan di atas.
+
+---
+
+# N. BATASAN AKHIR
+
+Tidak ada perubahan repository, tidak ada commit, tidak ada eksekusi DDL, tidak ada perubahan database Supabase, dan tidak ada migrasi data dalam tahap ini.
+
+Hasil akhir harus berupa blueprint dan skrip PostgreSQL final yang konsisten, dengan tujuh role fungsional yang telah disepakati, pembatasan domain dan penugasan yang benar, serta keputusan akademik tetap berada pada manusia.
+
+Jangan menyatakan siap produksi.
+
+Target tahap ini adalah menghasilkan dasar teknis yang layak untuk mulai diuji pada Supabase Development, tanpa mengubah keputusan bisnis dan arsitektur KUSAFA yang sudah disepakati sebelumnya.
