@@ -1,0 +1,6 @@
+{
+  "name": "KUSAFA - Sistem Informasi Capaian Santri",
+  "description": "Sistem Informasi Capaian Santri Kuttab Salman Al Farisi untuk Domain Ilmu Al-Qur'an, Ilmu Wasilah, dan Ilmu Ghayah",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
